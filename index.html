@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXT POD MARKET</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+body { margin:0; font-family:'Montserrat',sans-serif; background:#0f0f10; color:#fff; }
+header { background:#16181c; display:flex; align-items:center; padding:15px 30px; position:sticky; top:0; z-index:10; box-shadow:0 2px 10px rgba(0,0,0,0.3);}
+.logo { display:flex; align-items:center; gap:12px; }
+.logo img { width:48px; height:48px; border-radius:10px; object-fit:cover; }
+.logo h1 { font-size:26px; font-weight:900; color:#ff2d2d; margin:0; }
+
+.products { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px,1fr)); gap:20px; padding:30px; }
+.product { background:#1b1d23; border-radius:12px; padding:15px; text-align:center; transition:0.3s; position:relative; }
+.product:hover { transform:translateY(-4px); background:#22252b; }
+.product img { width:100%; border-radius:10px; height:200px; object-fit:cover; }
+.name { font-weight:700; font-size:18px; margin:10px 0 5px; color:#fff; }
+.desc { color:#aaa; font-size:14px; margin-bottom:10px; }
+.price { font-size:18px; font-weight:800; color:#ff2d2d; }
+
+button { background:#ff2d2d; color:#fff; font-weight:700; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; transition:0.3s; }
+button:hover { background:#ff4d4d; }
+
+footer { background:#16181c; text-align:center; padding:20px; font-size:14px; color:#aaa; margin-top:40px; }
+
+#cart { position:fixed; bottom:90px; right:20px; background:#222; padding:15px; border-radius:12px; width:250px; display:none; z-index:1000; }
+#cart h3 { color:#ff2d2d; margin-top:0; }
+.cart-item { display:flex; justify-content:space-between; margin-bottom:8px; }
+.cart-item span { font-size:14px; color:#fff; }
+#orderBtn { width:100%; margin-top:10px; }
+
+#adminPanel, #orderPanel { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:999; justify-content:center; align-items:center; }
+#adminPanel .panel, #orderPanel .panel { background:#1b1d23; padding:20px; border-radius:12px; width:400px; max-height:90%; overflow:auto; }
+#adminPanel input, #orderPanel input { width:100%; margin-bottom:10px; padding:8px; border-radius:6px; border:none; outline:none; }
+#adminPanel h2, #orderPanel h2 { margin-bottom:10px; text-align:center; color:#ff2d2d; }
+
+.admin-product { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #444; padding-bottom:5px; }
+.admin-product button { background:#e74c3c; border:none; border-radius:4px; color:#fff; font-weight:700; padding:2px 6px; cursor:pointer; }
+.admin-product button:hover { background:#ff6b5a; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <img src="images/logo.png" alt="NEXT POD MARKET">
+    <h1>NEXT POD MARKET</h1>
+  </div>
+</header>
+
+<section class="products" id="products"></section>
+
+<div id="cart">
+  <h3>Корзина</h3>
+  <div id="cartItems"></div>
+  <button id="orderBtn" onclick="showOrderPanel()">Заказать</button>
+</div>
+
+<footer>
+  <p>© 2025 NEXT POD MARKET | Все права защищены</p>
+</footer>
+
+<!-- Админ панель -->
+<div id="adminPanel">
+  <div class="panel">
+    <h2>Добавить товар</h2>
+    <input id="pName" type="text" placeholder="Название товара">
+    <input id="pDesc" type="text" placeholder="Описание">
+    <input id="pPrice" type="text" placeholder="Цена (грн)">
+    <input id="pImgFile" type="file" accept="image/*">
+    <button onclick="addProduct()">Добавить</button>
+    <hr>
+    <h2>Все товары</h2>
+    <div id="adminProducts" style="max-height:200px; overflow:auto;"></div>
+    <hr>
+    <h2>Заказы</h2>
+    <div id="ordersList" style="max-height:200px; overflow:auto;"></div>
+    <button onclick="closeAdmin()">Закрыть</button>
+  </div>
+</div>
+
+<!-- Форма заказа -->
+<div id="orderPanel">
+  <div class="panel">
+    <h2>Оформление заказа</h2>
+    <input id="orderName" type="text" placeholder="Имя">
+    <input id="orderSurname" type="text" placeholder="Прізвище">
+    <input id="orderPatronymic" type="text" placeholder="По батькові">
+    <input id="orderPhone" type="text" placeholder="Телефон">
+    <input id="orderCity" type="text" placeholder="Місто">
+    <input id="orderNova" type="text" placeholder="Номер Нової пошти">
+    <button onclick="submitOrder()">Отправить заказ</button>
+    <button onclick="closeOrderPanel()">Закрыть</button>
+  </div>
+</div>
+
+<script>
+const productsEl = document.getElementById('products');
+const cartEl = document.getElementById('cart');
+const cartItemsEl = document.getElementById('cartItems');
+const orderPanel = document.getElementById('orderPanel');
+const adminProductsEl = document.getElementById('adminProducts');
+const ordersListEl = document.getElementById('ordersList');
+
+let products = JSON.parse(localStorage.getItem('products')) || [];
+let cart = [];
+let orders = JSON.parse(localStorage.getItem('orders')) || [];
+
+function renderProducts() {
+  productsEl.innerHTML = products.map((p,i)=>`
+    <div class="product">
+      <img src="${p.img}" alt="${p.name}">
+      <div class="name">${p.name}</div>
+      <div class="desc">${p.desc}</div>
+      <div class="price">${p.price} грн</div>
+      <button onclick="addToCart(${i})">Купить</button>
+    </div>
+  `).join('');
+}
+
+function renderAdminProducts(){
+  adminProductsEl.innerHTML = products.map((p,i)=>`
+    <div class="admin-product">
+      <span>${p.name} (${p.price} грн)</span>
+      <button onclick="deleteProduct(${i})">✖</button>
+    </div>
+  `).join('');
+}
+
+function deleteProduct(i){
+  if(confirm('Удалить этот товар?')){
+    products.splice(i,1);
+    localStorage.setItem('products', JSON.stringify(products));
+    renderProducts();
+    renderAdminProducts();
+  }
+}
+
+function addToCart(i){
+  cart.push(products[i]);
+  updateCart();
+  cartEl.style.display = 'block';
+}
+
+function updateCart(){
+  cartItemsEl.innerHTML = cart.map((p,i)=>`<div class="cart-item"><span>${p.name} (${p.price} грн)</span><button onclick="removeFromCart(${i})">✖</button></div>`).join('');
+}
+
+function removeFromCart(i){
+  cart.splice(i,1);
+  updateCart();
+  if(cart.length===0) cartEl.style.display='none';
+}
+
+function showOrderPanel(){
+  if(cart.length===0){ alert('Корзина пустая!'); return; }
+  orderPanel.style.display='flex';
+}
+
+function closeOrderPanel(){
+  orderPanel.style.display='none';
+}
+
+function submitOrder(){
+  const name = document.getElementById('orderName').value;
+  const surname = document.getElementById('orderSurname').value;
+  const patronymic = document.getElementById('orderPatronymic').value;
+  const phone = document.getElementById('orderPhone').value;
+  const city = document.getElementById('orderCity').value;
+  const nova = document.getElementById('orderNova').value;
+
+  if(!name || !surname || !patronymic || !phone || !city || !nova){
+    alert('Заполните все поля!');
+    return;
+  }
+
+  const order = { name, surname, patronymic, phone, city, nova, products:[...cart] };
+  orders.push(order);
+  localStorage.setItem('orders', JSON.stringify(orders));
+  updateOrdersList();
+
+  cart=[];
+  updateCart();
+  closeOrderPanel();
+  cartEl.style.display='none';
+
+  alert('Ваш заказ принят!');
+}
+
+function updateOrdersList(){
+  ordersListEl.innerHTML = orders.map((o,i)=>`
+    <div style="border-bottom:1px solid #444; padding:5px;">
+      <strong>Заказ #${i+1}</strong><br>
+      ${o.name} ${o.surname} ${o.patronymic}<br>
+      Тел: ${o.phone}, Місто: ${o.city}, Нова пошта: ${o.nova}<br>
+      Товары:<br>
+      ${o.products.map(p=>p.name+' ('+p.price+' грн)').join('<br>')}
+    </div>
+  `).join('');
+}
+
+// --- Админка ---
+const adminPassword = '1234';
+const adminPanel = document.getElementById('adminPanel');
+
+const adminBtn = document.createElement('button');
+adminBtn.id = 'adminBtn';
+adminBtn.innerText = '+';
+adminBtn.style.display = 'block';
+adminBtn.style.position = 'fixed';
+adminBtn.style.bottom = '20px';
+adminBtn.style.right = '20px';
+adminBtn.style.background = '#ff2d2d';
+adminBtn.style.color = '#fff';
+adminBtn.style.border = 'none';
+adminBtn.style.borderRadius = '50%';
+adminBtn.style.width = '50px';
+adminBtn.style.height = '50px';
+adminBtn.style.fontSize = '24px';
+adminBtn.style.fontWeight = '700';
+adminBtn.style.cursor = 'pointer';
+adminBtn.style.zIndex = '1000';
+adminBtn.onclick = function() {
+  const pass = prompt('Введите пароль для админки:');
+  if(pass === adminPassword){
+    adminPanel.style.display = 'flex';
+    renderAdminProducts();
+    updateOrdersList();
+  } else {
+    alert('Неверный пароль!');
+  }
+};
+document.body.appendChild(adminBtn);
+
+function closeAdmin(){ adminPanel.style.display='none'; }
+
+function addProduct(){
+  const name = document.getElementById('pName').value;
+  const desc = document.getElementById('pDesc').value;
+  const price = document.getElementById('pPrice').value;
+  const imgFile = document.getElementById('pImgFile').files[0];
+
+  if(!name || !price || !imgFile){ alert('Заполните все поля!'); return; }
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const imgData = e.target.result;
+    products.push({name, desc, price, img: imgData});
+    localStorage.setItem('products', JSON.stringify(products));
+    renderProducts();
+    renderAdminProducts();
+    closeAdmin();
+    alert('Товар добавлен!');
+  }
+  reader.readAsDataURL(imgFile);
+}
+
+// Инициализация
+renderProducts();
+</script>
+
+</body>
+</html>
